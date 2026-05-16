@@ -1,88 +1,109 @@
 
-# Text-to-Image Synthesis using Machine Learning
+# Stable Bud: Desktop Text-to-Image Generator
 
-This repository features an end-to-end Machine Learning and Deep Learning pipeline dedicated to generative art and cross-modal synthesis: creating descriptive, high-fidelity images directly from textual input prompts. 
-
-By bridging the gap between Natural Language Processing (NLP) and Computer Vision (CV), this project leverages deep generative networks to parse semantic descriptions and translate them into corresponding visual pixel representations.
+An elegant GUI application built in Python that utilizes a pre-trained **Stable Diffusion** model to convert text descriptions into realistic, high-fidelity images. The software wraps powerful deep learning generation inside a streamlined desktop interface using CustomTkinter and runs hardware-accelerated processing via PyTorch.
 
 ---
 
-## 📌 Project Architecture & Pipeline
+## 📌 Project Features
 
-The framework implements a cutting-edge multi-modal processing workflow to handle text embeddings and spatial generation:
-
-1. **Text Embedding & Semantics:** Uses an encoder network (such as CLIP, BERT, or specialized transformers) to convert textual sentences into dense, high-dimensional vector representations that capture semantic meaning.
-2. **Generative Modeling Backend:** Feeds text vectors into a deep generative framework—such as a Generative Adversarial Network (GAN, e.g., AttnGAN), a Variational Autoencoder (VAE), or a Diffusion-based model architecture.
-3. **Conditioned Synthesis:** Guarantees structural alignment between the text input and generated visuals by conditioning the network's latent vectors directly on the extracted textual embeddings.
-4. **Resolution Refinement:** Passes initial low-resolution feature maps through stacked upsampling layers or neural super-resolution networks to produce a clear, crisp final image.
+- **Intuitive GUI Desktop App:** Uses `CustomTkinter` to provide a dark-mode responsive layout for seamless prompt submissions.
+- **State-of-the-Art Generative AI:** Deploys the `CompVis/stable-diffusion-v1-4` pipeline to generate creative, contextual artwork.
+- **Hardware Acceleration:** Fully optimized to execute processing using PyTorch `autocast` on CUDA-enabled NVIDIA GPUs for high-speed image rendering.
+- **Auto-Save System:** Every successfully generated image is automatically saved locally to your workspace directory as `generatedimage.png`.
 
 ---
 
-## 🛠️ Installation & Dependencies
+## ⚙️ How It Works (Behind the Scenes)
 
-To execute the generative notebooks or inference scripts locally, configure your environment with the following dependencies:
+1. **User Input:** The user types a natural language description into the application entry box.
+2. **Model Call:** Upon clicking the "Generate" button, the text is tokenized and processed by the `StableDiffusionPipeline` under half-precision floating-point format (`torch.float16`) to balance rendering performance and VRAM usage.
+3. **Guidance Adjustment:** The pipeline uses a CFG (Classifier-Free Guidance) scale factor of `8.5` to ensure the final output strictly mirrors the prompt criteria.
+4. **Canvas Update:** The resulting tensor array is translated via `PIL` into a graphical asset and displayed instantly on the interface canvas.
+
+---
+
+## 🛠️ Installation & Setup
+
+### 1. Prerequisites
+Ensure you have a GPU environment configured with Python 3.8+ and standard NVIDIA CUDA drivers installed. 
+
+### 2. Dependency Installation
+Install the necessary deep learning, computer vision, and user interface packaging libraries:
 
 ```bash
-pip install numpy torch torchvision transformers diffusers matplotlib pillow
+pip install torch torchvision --index-url [https://download.pytorch.org/whl/cu118](https://download.pytorch.org/whl/cu118)
+pip install diffusers transformers customtkinter pillow
 
 ```
 
-> **Note:** Generating images from text is highly resource-intensive. It is strongly recommended to run this repository on a machine equipped with a dedicated CUDA-enabled NVIDIA GPU.
+### 3. Authentication Configuration
 
----
+Because the Hugging Face hub restricts unauthenticated pipeline downloads for safety metrics, you need an access token to load the baseline model:
 
-## 💻 Code Implementation & Inference Snippet
-
-### Generating Images from Text Prompts
-
-Below is a clean configuration snippet showing how text inputs are tokenized, processed through a generative model pipeline, and rendered into final image files:
+1. Generate an Access Token via your [Hugging Face Profile Settings](https://huggingface.co/settings/tokens).
+2. Accept the model terms of service on the official repository page for `CompVis/stable-diffusion-v1-4`.
+3. Create a secondary script named `authtoken.py` in your local directory containing your string token assignment:
 
 ```python
-import torch
-from PIL import Image
-import matplotlib.pyplot as plt
-
-# Check system hardware availability
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"Running inference engine on: {device}")
-
-# Define your creative text prompt
-prompt = "A futuristic cyberpunk city with neon lights and flying cars, high resolution, digital art"
-
-# --- Model Execution Pipeline ---
-# 1. Text processing & embedding extraction
-# 2. Latent space sampling conditioned on the prompt vector
-# 3. Running decoder layers to construct pixels
-# ---------------------------------
-
-# (Assuming 'pipeline' is initialized with your generative model weights)
-# image = pipeline(prompt).images[0]
-
-# Save and display the generated artwork
-# image.save("output_generation.png")
-# plt.imshow(image)
-# plt.axis('off')
-# plt.show()
+# authtoken.py
+auth_token = "YOUR_HUGGING_FACE_ACCESS_TOKEN_HERE"
 
 ```
 
 ---
 
-## 📈 Evaluation Metrics for Generative Art
+## 💻 Source Code Architecture
 
-Evaluating open-ended generative vision models relies on specialized industry metrics rather than standard supervised matrices:
+Run the application using the following execution command:
 
-* **Inception Score (IS):** Evaluates the clarity and conditional diversity of the generated images.
-* **Fréchet Inception Distance (FID):** Measures the statistical distance between the features of the generated image distributions and real-world reference images (lower scores signify higher realism).
-* **CLIP Score:** Quantifies text-to-image semantic alignment by calculating the cosine similarity between the input text vector and the synthesized image vector.
+```bash
+python app.py
+
+```
+
+### Core Code Snippet
+
+```python
+import tkinter as tk
+import customtkinter as ctk
+from PIL import ImageTk
+import torch
+from torch import autocast
+from diffusers import StableDiffusionPipeline
+from authtoken import auth_token
+
+# Application UI Initialization
+app = tk.Tk()
+app.geometry("523x622")
+app.title("Stable Bud")
+ctk.set_appearance_mode("dark")
+
+# Loading the Generative AI Model Pipeline
+modelid = "CompVis/stable-diffusion-v1-4"
+device = "cuda"
+pipe = StableDiffusionPipeline.from_pretrained(modelid, revision="fp16", torch_dtype=torch.float16, use_auth_token=auth_token)
+pipe.to(device)
+
+def generate():
+    with autocast(device):
+        # Generate the visual matrix matching the typed prompt
+        image = pipe(prompt.get(), guidance_scale=8.5)["sample"][0]
+    
+    # Save image and map it directly onto the layout canvas
+    image.save("generatedimage.png")
+    img = ImageTk.PhotoImage(image)
+    lmain.configure(image=img)
+
+```
 
 ---
 
 ## 🔮 Future Enhancements
 
-* **Prompt Engineering Dashboard:** Integrate a lightweight web interface using **Streamlit** or **Gradio** that lets users input custom strings, modify seed steps, tweak guidance scales, and download generated images seamlessly.
-* **Negative Prompting Support:** Add secondary text embedding blocks to explicitly specify elements the user wants excluded from the final image structure (e.g., "blurry", "low quality").
-* **Fine-Tuning Framework (LoRA):** Set up scripts allowing users to inject hyper-localized datasets to fine-tune the master model on specific artistic styles or specific custom characters.
+* **Multi-Image Formats:** Add variable input fields to let users specify dimensions (e.g., 512x512, 768x768) and generation steps.
+* **Batch Processing:** Enable generating grids of 4 images simultaneously from a single text prompt.
+* **History Viewer:** Introduce a persistent sidebar to log previously generated prompts and thumbnail history during a live session.
 
 ```
 
